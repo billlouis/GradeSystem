@@ -1,5 +1,24 @@
+import copy
 class GradeSystem:
+    """
+    A class representing a grading system.
+
+    This class manages student data and operations for
+    displaying grades, updating scores, updating weights, and more.
+
+    Attributes:
+        studentList (list): A list of Student objects for students.
+        weightList (list): A list of weights for each grade.
+        gradeDistribution (dict): A dictionary of distribution of letter grades of all the students.
+
+    """
     def __init__(self):
+        """
+        Initializes the GradeSystem object.
+
+        Running Example:
+            grade_system = GradeSystem()
+        """
         self.studentList = []
         self.weightList = [0.1,0.1,0.1,0.3,0.4]
         self.gradeDistribution = {'A+': 0, 'A': 0, 'A-': 0, 'B+': 0, 'B': 0, 'B-': 0, 
@@ -21,6 +40,12 @@ class GradeSystem:
             print("Error occurred while reading file:", e)
 
     def recalculateDistribution(self):
+        """
+        Recalculates the distribution of letter grades among students.
+
+        Running Example:
+            grade_system.recalculateDistribution()
+        """
         # Reset all grade distribution counts to 0
         for grade in self.gradeDistribution:
             self.gradeDistribution[grade] = 0
@@ -30,8 +55,20 @@ class GradeSystem:
             self.gradeDistribution[student.letterGrade] += 1
 
     def addStudent(self, info):
+        """
+        Adding a new student to the list, as well as all his/her grades.
+
+        :param info: A string containing information about the new student in the format (sID name lab1 lab2 lab3 mid final).
+        :type info: str
+
+        Running Example:
+            grade_system.addStudent('123 John 90 85 75 85 90')
+        """
         try:
             newInfo = info.split()
+            for student in self.studentList:
+                if student.sID == newInfo[0]:
+                    raise AssertionError("Student with ID '{}' already exists.".format(student.sID))
             if len(newInfo) != 7:
                 raise ValueError("Invalid data format: Expected 7 elements")
 
@@ -39,6 +76,7 @@ class GradeSystem:
                                      self.weightList)
             self.studentList.append(tmpStudent)
             self.gradeDistribution[tmpStudent.letterGrade] += 1
+            print('Student added successfully.')
         except ValueError as ve:
             print("Error adding student:", ve)
         except Exception as e:
@@ -46,45 +84,86 @@ class GradeSystem:
 
 
     def updateScore(self, info):
+        """
+        Updating one or more score of a certain student.
+
+        :param info: A string containing the updated scores and the score names for a student in the format 'sID score_name new_score ...'.
+        :type info: str
+
+        Running Example:
+            grade_system.updateScore('123 lab1 88 lab3 89')
+        """
         try:
             newInfo = info.split()
+            tmpStudentCopy = None
             for student in self.studentList:
                 if student.sID == newInfo[0]:
-                    for i, j in enumerate(newInfo[1::2], start=1):  # Increment by 2
-                        if j == 'final':
-                            student.scores[4] = float(newInfo[i * 2])
-                        elif j == 'midterm':
-                            student.scores[3] = float(newInfo[i * 2])
-                        elif j == 'lab1' or j == 'lab2' or j == 'lab3':
-                            student.scores[int(j[-1]) - 1] = float(newInfo[i * 2])
-                        else:
-                            raise AssertionError(f"Invalid score format: {j}")
+                    tmpStudentCopy = copy.deepcopy(student)
+                    break
 
-                        student.recalculate(self.weightList)
-                        self.recalculateDistribution()
+            for i, j in enumerate(newInfo[1::2], start=1):  # Increment by 2
+                if j == 'final':
+                    tmpStudentCopy.scores[4] = float(newInfo[i * 2])
+                elif j == 'midterm':
+                    tmpStudentCopy.scores[3] = float(newInfo[i * 2])
+                elif j == 'lab1' or j == 'lab2' or j == 'lab3':
+                    tmpStudentCopy.scores[int(j[-1]) - 1] = float(newInfo[i * 2])
+                else:
+                    raise AssertionError(f"Invalid score format: {j}")
+
+            for student in self.studentList:
+                if student.sID == tmpStudentCopy.sID:
+                    student.scores = tmpStudentCopy.scores
+                    student.recalculate(self.weightList)
+                    break
+            self.recalculateDistribution()
         except Exception as e:
             print("Error updating score:", e)
+
                     
     def updateWeight(self, info):
+        """
+        Updates the weights of lab assignments, midterm, and final exam.
+
+        :param info: A string containing the new weights for lab assignments, midterm, and final exam in the format 'weight_name new_weight ...'.
+        :type info: str
+
+        Running Example:
+            grade_system.updateWeight('lab1 0.2 lab2 0.2 lab3 0.2 midterm 0.3 final 0.4')
+        """
         try:
             newInfo = info.split()
+            tmpWeightList = copy.deepcopy(self.weightList)
             for i, j in enumerate(newInfo[::2], start=0):  # Increment by 2
                 assert float(newInfo[i*2+1]), f"Invalid weight format: {newInfo[i*2+1]}"
                 if j == 'final':
-                    self.weightList[4] = float(newInfo[i * 2 + 1])
+                    tmpWeightList[4] = float(newInfo[i * 2 + 1])
                 elif j == 'midterm':
-                    self.weightList[3] = float(newInfo[i * 2 + 1])
+                    tmpWeightList[3] = float(newInfo[i * 2 + 1])
                 elif j == 'lab1' or j == 'lab2' or j == 'lab3':
-                    self.weightList[int(j[-1]) - 1] = float(newInfo[i * 2 + 1])
+                    tmpWeightList[int(j[-1]) - 1] = float(newInfo[i * 2 + 1])
                 else:
                     raise AssertionError(f"Invalid weight format: {j}")
+            if sum(tmpWeightList)>1.0:
+                raise AssertionError(f"Invalid weight sum: {sum(tmpWeightList):.2f}")
+            else:
+                self.weightList = tmpWeightList
             for student in self.studentList:
                 student.recalculate(self.weightList)
             self.recalculateDistribution()
         except Exception as e:
-            print("Error adding weight:", e)
+            print("Error updating weight:", e)
         
     def showScore(self, sID):
+        """
+        Shows the score of a student, using his/her student id.
+
+        :param sID: The ID of the student whose scores are to be displayed.
+        :type sID: str
+
+        Running Example:
+            grade_system.showScore('123')
+        """
         found = False
         for student in self.studentList:
             if student.sID == sID:
@@ -98,6 +177,15 @@ class GradeSystem:
             print(f"Student with ID {sID} not found.")
             
     def showLetterGrade(self, sID):
+        """
+        shows a letter grade of a student by his/her student id.
+
+        :param sID: The ID of the student whose letter grade is going to be displayed.
+        :type sID: str
+
+        Running Example:
+            grade_system.showLetterGrade('123')
+        """
         found = False
         for student in self.studentList:
             if student.sID == sID:
@@ -108,6 +196,15 @@ class GradeSystem:
             print(f"Student with ID {sID} not found.")
             
     def showAverage(self, sID):
+        """
+        Shows the average score of a student by his/her student id.
+
+        :param sID: The ID of the student whose average score is to be displayed.
+        :type sID: str
+
+        Running Example:
+            grade_system.showAverage('123')
+        """
         found = False
         for student in self.studentList:
             if student.sID == sID:
@@ -118,6 +215,15 @@ class GradeSystem:
             print(f"Student with ID {sID} not found.")
     
     def showRank(self, sID):
+        """
+        Shows the rank of a student identified by his/her student id.
+
+        :param sID: The ID of the student whose rank is to be displayed.
+        :type sID: str
+
+        Running Example:
+            grade_system.showRank('123')
+        """
         # Sort studentList based on average score in descending order
         sorted_students = sorted(self.studentList, key=lambda x: x.averageScore, reverse=True)
         # Find the position of the student with the given ID in the sorted list
@@ -129,11 +235,26 @@ class GradeSystem:
             print(f"Student with ID {sID} not found.")
     
     def showGradeDistribution(self):
+        """
+        Shows the distribution of letter grades from all students.
+
+        Running Example:
+            grade_system.showGradeDistribution()
+        """
         print("Grade Distribution:")
         for grade, count in self.gradeDistribution.items():
             print(f"{grade}: {count}")
 
     def showFilter(self, Thres):
+        """
+        Show all the students which the score is above the threshold.
+
+        :param Thres: The threshold score.
+        :type Thres: float
+
+        Running Example:
+            grade_system.showFilter(85)
+        """
         sorted_students = sorted(self.studentList, key=lambda x: x.averageScore, reverse=True)
         print('\n')
         for i, student in enumerate(sorted_students, start=1):
@@ -141,7 +262,36 @@ class GradeSystem:
                 print(f"{i} {student.name} {student.sID} {student.letterGrade} {student.averageScore:.2f}")
 
 class Student:
+    """
+    A class representing a student.
+
+    This class stores information about a student including their ID, name, scores, average score, and letter grade.
+
+    """
     def __init__(self, sID, name, lab1, lab2, lab3, mid, final, weightList):
+        """
+        Initializes a Student object.
+
+        :param sID: The student's ID.
+        :type sID: str
+        :param name: The student's name.
+        :type name: str
+        :param lab1: The student's score for lab1.
+        :type lab1: str
+        :param lab2: The student's score for lab2.
+        :type lab2: str
+        :param lab3: The student's score for lab3.
+        :type lab3: str
+        :param mid: The student's score for the midterm exam.
+        :type mid: str
+        :param final: The student's score for the final exam.
+        :type final: str
+        :param weightList: A list of weights for lab assignments, midterm, and final exam.
+        :type weightList: list
+
+        Running Example:
+            student = Student('123', 'John', '90', '85', '75', '85', '90', ['0.1', '0.1', '0.1', '0.3', '0.4'])
+        """
         try:
             self.sID = sID
             self.name = name
@@ -152,14 +302,43 @@ class Student:
             print("Error constructing student:", e, "student creation cancelled")
             raise
     def recalculate(self,weightList):
+        """
+        Recalculates the student's average score and letter grade based on the weight list.
+
+        :param weightList: A list of weights for lab assignments, midterm, and final exam.
+        :type weightList: list
+
+        Running Example:
+            student.recalculate(['0.2', '0.2', '0.2', '0.3', '0.4'])
+        """
         self.averageScore = self.average(weightList)
         self.letterGrade = self.countLetterGrade()
         
     def average(self, weightList):
+        """
+        Calculates the student's average score using the weight.
+
+        :param weightList: A list of weights for lab assignments, midterm, and final exam.
+        :type weightList: list
+        :return: The average score of the student.
+        :rtype: float
+
+        Running Example:
+            average_score = student.average(['0.2', '0.2', '0.2', '0.3', '0.4'])
+        """
         total_score = sum(float(score) * float(weight) for score, weight in zip(self.scores, weightList))
         return total_score
     
     def countLetterGrade(self):
+        """
+        Converts the letter grade of the student using average score.
+
+        :return: The letter grade of the student.
+        :rtype: str
+
+        Running Example:
+            letter_grade = student.countLetterGrade()
+        """
         if 90 <= self.averageScore <= 100:
             return 'A+'
         elif 85 <= self.averageScore < 90:
@@ -187,10 +366,9 @@ class Student:
 if __name__ == "__main__":
     # Create GradeSystem object
     grade_system = GradeSystem()
-
+    print("Welcome to Grade System.")
     # Main loop
     while True:
-        print("Welcome to Grade System.")
         print("Function menu:")
         print("1) Show grades")
         print("2) Show grade letters")

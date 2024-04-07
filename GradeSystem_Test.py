@@ -15,6 +15,8 @@ def test_add_student(grade_system):
             Expected result : Student won't be added
         -Step 3: Add valid student to GradeSystem
             Expected result : Student will be created and the length of grade_system.studentList will increase
+        -Step 4: Add existing student to GradeSystem
+            Expected result : Student won't be created
     """
     previous_len = len(grade_system.studentList)
     # Test adding an invalid student with missing data
@@ -26,6 +28,9 @@ def test_add_student(grade_system):
     # Test adding a valid student
     grade_system.addStudent("110006213 Bill 90 85 95 88 92")
     assert len(grade_system.studentList) == previous_len+1
+    # Test adding existing student
+    grade_system.addStudent("110006213 Bill 90 85 95 88 92")
+    assert len(grade_system.studentList) == previous_len + 1
 
 def test_update_score(grade_system):
     """
@@ -37,7 +42,7 @@ def test_update_score(grade_system):
             Expected result : Student will be saved into student_added
         -Step 3: Updating with wrong format
             Expected result : student_added.scores will not be updated
-        -Step 4: Updating with proper format
+        -Step 4: Updating with proper format (all scores & individual score)
             Expected result : Student scores will be updated
     """
     # Add a student first
@@ -53,6 +58,9 @@ def test_update_score(grade_system):
     # Test updating scores for the student
     grade_system.updateScore("110006213 lab1 95 lab2 88 lab3 90 midterm 85 final 94")
     assert student_added.scores == [95, 88, 90, 85, 94]
+    # Test updating scores for the student only 1 subject
+    grade_system.updateScore("110006213 lab1 99")
+    assert student_added.scores == [99, 88, 90, 85, 94]
 
 def test_update_weight(grade_system):
     """
@@ -60,11 +68,16 @@ def test_update_weight(grade_system):
     Test Description:
         -Step 1: Updating weight with wrong format
             Expected result : Weight will not be updated
-        -Step 2: Updating weight with proper format
+        -Step 2: Updating weight with wrong sum
+            Expected result : Weight will not be updated
+        -Step 3: Updating weight with proper format
             Expected result : Weight will be updated
     """
     # Test updating weights failed (wrong format)
     grade_system.updateWeight("lab5 0.2 lab2 0.2 lab3 0.2 midterm 0.2 final 0.2")
+    assert grade_system.weightList == [0.1, 0.1, 0.1, 0.3, 0.4]
+    # Test updating weights failed (wrong sum)
+    grade_system.updateWeight("lab5 0.2 lab2 0.2 lab3 0.2 midterm 0.2 final 0.9")
     assert grade_system.weightList == [0.1, 0.1, 0.1, 0.3, 0.4]
     # Test updating weights
     grade_system.updateWeight("lab1 0.2 lab2 0.2 lab3 0.2 midterm 0.2 final 0.2")
@@ -223,3 +236,88 @@ def test_recalculate_distribution(grade_system):
     grade_system.recalculateDistribution()
     assert grade_system.gradeDistribution['A+'] == original_Aplus-1
     assert grade_system.gradeDistribution['E'] == original_E+1
+
+def test_scenario_one(grade_system,capsys):
+    """
+        Test Function:
+            GradeSystem.addStudent(info)
+                -Student.__init__(sID, name, lab1, lab2, lab3, mid, final, weightList)
+            GradeSystem.updateScore(info)
+                -Student.recalculate(weightList)
+                -GradeSystem.recalculateDistribution()
+            GradeSystem.updateWeight(info)
+                -Student.recalculate(weightList)
+                -GradeSystem.recalculateDistribution()
+        Test Description:
+            This is a test to test all function to make sure everything runs properly (Successful attempt)
+            -Step 1: Adding student 110006213 with A+ worth of grades
+            -Step 2: Updating student 110006213's score
+            -Step 3: Checking if student 110006213's scores, averageScore, letterGrade are updated.
+            -Step 4: Checking if gradeDistribution are updated properly
+            -Step 5: Updating grade_system's weight
+            -Step 6: Checking if student 110006213's averageScore and letterGrade are updated.
+            -Step 7: Checking if gradeDistribution are updated properly.
+    """
+    grade_system.addStudent("110006213 Bill 99 95 95 98 92")
+    added_student = None
+    original_Aplus = grade_system.gradeDistribution['A+']
+    original_E = grade_system.gradeDistribution['E']
+    original_B = grade_system.gradeDistribution['B']
+    for student in grade_system.studentList:
+        if student.sID == "110006213":
+            added_student = student
+    grade_system.updateScore("110006213 lab1 10 lab2 10 lab3 10 midterm 10 final 90")
+    assert added_student.scores == [10,10,10,10,90]
+    assert added_student.averageScore == 42
+    assert added_student.letterGrade == 'E'
+    assert original_Aplus-1 == grade_system.gradeDistribution['A+']
+    assert original_E+1 == grade_system.gradeDistribution['E']
+    original_E += 1
+
+    grade_system.updateWeight("lab1 0.05 lab2 0.05 lab3 0.05 midterm 0.05 final 0.8")
+    assert added_student.averageScore == 74
+    assert added_student.letterGrade == 'B'
+    assert grade_system.weightList == [0.05,0.05,0.05,0.05,0.8]
+    assert original_E-1 == grade_system.gradeDistribution['E']
+    assert original_B+1 == grade_system.gradeDistribution['B']
+
+def test_scenario_two(grade_system,capsys):
+    """
+        Test Function:
+            GradeSystem.addStudent(info)
+                -Student.__init__(sID, name, lab1, lab2, lab3, mid, final, weightList)
+            GradeSystem.updateScore(info)
+                -Student.recalculate(weightList)
+                -GradeSystem.recalculateDistribution()
+            GradeSystem.updateWeight(info)
+                -Student.recalculate(weightList)
+                -GradeSystem.recalculateDistribution()
+        Test Description:
+            This is a test to test all function to make sure every error are caught (Failed attempt catch)
+            -Step 1: Adding student 110006213 with incorrect format (Incorrect format error)
+            -Step 2: Adding student 110006213 with A+ worth of grades
+            -Step 3: Creating student 110006213 again (Student already exist error)
+            -Step 4: Updating student 110006213's score incorrectly (Incorrect format error)
+            -Step 5: Updating weight with incorrect format (Incorrect format error)
+            -Step 6: Updating weight with incorrect sum (Incorrect sum error)
+    """
+    tmpLen = len(grade_system.studentList)
+    grade_system.addStudent("110006213 Bill 99 95 95 98")
+    assert tmpLen == len(grade_system.studentList)
+    grade_system.addStudent("110006213 Bill 99 95 95 98 92")
+    grade_system.addStudent("110006213 Bill 99 95 95 98 92")
+    assert tmpLen+1 == len(grade_system.studentList)
+    added_student = None
+    for student in grade_system.studentList:
+        if student.sID == "110006213":
+            added_student = student
+    grade_system.updateScore("110006213 lab1 10 lab2 10 lab3 10 midterm 10 final 9B")
+    assert added_student.scores == [99, 95, 95, 98, 92]
+    assert added_student.averageScore == 95.1
+    assert added_student.letterGrade == 'A+'
+
+    grade_system.updateWeight("lab 0.05 lab2 0.05 lab3 0.05 midterm 0.05 final 0.8")
+    assert grade_system.weightList == [0.1, 0.1, 0.1, 0.3, 0.4]
+    grade_system.updateWeight("lab1 0.05 lab2 0.05 lab3 0.05 midterm 0.05 final 0.9")
+    assert grade_system.weightList == [0.1, 0.1, 0.1, 0.3, 0.4]
+
